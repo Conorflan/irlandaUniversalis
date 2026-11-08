@@ -14,4 +14,10 @@ export function log(text, kind = 'info', opts = {}) {
   for (const f of ctx.listeners) f(entry);
 }
 
+// Logs and also stops the clock with a pop-up for the player.
+export function notify(title, text, opts = {}) {
+  log(text, opts.kind || 'notice', { ...opts, popup: true });
+  ctx.S.pending.push({ kind: 'notice', title, text, prov: opts.prov, tone: opts.kind || 'notice' });
+}
+
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));

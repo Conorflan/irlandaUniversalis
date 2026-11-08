@@ -98,7 +98,7 @@ function diplomacy(c) {
   }
   // client-kingship: demand hostages from much weaker neighbours
   if (!atWar && !c.outsider && R().chance(0.02)) {
-    const t = neighbours(c.id).map(i => S.countries[i]).find(x => DIP.canDemandHostages(c, x) && DIP.hostageOdds(c, x).ok);
+    const t = neighbours(c.id).map(i => S.countries[i]).find(x => DIP.canDemandHostages(c, x) && DIP.hostageOdds(c, x).ok && !((c.hostCB || {})[x.id] >= S.year) && !S.pending.some(p => p.kind === 'hostages'));
     if (t) {
       if (t.id === S.player) S.pending.push({ kind: 'hostages', from: c.id });
       else { DIP.demandHostages(c, t); log(`${t.name} gives hostages to ${c.name} and becomes a client kingdom.`, 'world'); }

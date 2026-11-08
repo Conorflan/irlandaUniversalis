@@ -48,8 +48,13 @@ export class MapView {
   }
   fit() {
     const r = this.canvas.getBoundingClientRect();
-    const z = Math.min(r.width / this.M.W, r.height / this.M.H) * 0.95;
-    this.zoom = z; this.panX = (r.width - this.M.W * z) / 2; this.panY = (r.height - this.M.H * z) / 2;
+    // leave room for the start card on wide screens
+    const card = document.querySelector('#start:not(.hidden) .start-card');
+    const side = card && r.width > 760 ? card.getBoundingClientRect().width : 0;
+    const bottom = card && r.width <= 760 ? card.getBoundingClientRect().height : 0;
+    const w = r.width - side, h = r.height - bottom;
+    const z = Math.min(w / this.M.W, h / this.M.H) * 0.94;
+    this.zoom = z; this.panX = (w - this.M.W * z) / 2; this.panY = (h - this.M.H * z) / 2;
     this.needs = true;
   }
   centerOn(id, zoom) {
@@ -123,7 +128,7 @@ export class MapView {
     const id = pid[i];
     const IW = W * SC;
     if (id < 0) {
-      const col = id === -2 ? [86, 128, 160] : null;
+      const col = id === -2 ? [92, 120, 134] : null;
       for (let sy = 0; sy < SC; sy++) for (let sx = 0; sx < SC; sx++) {
         const o = ((y * SC + sy) * IW + x * SC + sx) * 4;
         if (col) { d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = 255; } else d[o + 3] = 0;
@@ -220,7 +225,7 @@ export class MapView {
     }
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     const grd = c.createLinearGradient(0, 0, r.width, r.height);
-    grd.addColorStop(0, '#1d3b55'); grd.addColorStop(1, '#122a40');
+    grd.addColorStop(0, '#33454e'); grd.addColorStop(1, '#253740');
     c.fillStyle = grd; c.fillRect(0, 0, r.width, r.height);
     if (!M || !S) return;
     const z = this.zoom;
@@ -231,13 +236,13 @@ export class MapView {
     const tx = x => x * z + this.panX, ty = y => y * z + this.panY;
     // province names when zoomed in
     if (z > 2.4) {
-      c.font = `${Math.min(13, 4 + z * 1.6)}px "Alegreya Sans", system-ui, sans-serif`;
+      c.font = `500 ${Math.min(12.5, 4 + z * 1.5)}px "IBM Plex Sans Condensed", system-ui, sans-serif`;
       c.textAlign = 'center'; c.textBaseline = 'middle';
       for (const p of M.provinces) {
         const X = tx(p.x), Y = ty(p.y); if (X < -50 || Y < -20 || X > r.width + 50 || Y > r.height + 20) continue;
         const nm = p.name.replace(/\s*\(.*\)/, '');
-        c.lineWidth = 3; c.strokeStyle = 'rgba(255,250,235,0.65)'; c.strokeText(nm, X, Y + 10);
-        c.fillStyle = '#2a2015'; c.fillText(nm, X, Y + 10);
+        c.lineWidth = 3; c.strokeStyle = 'rgba(245,242,234,0.7)'; c.strokeText(nm, X, Y + 10);
+        c.fillStyle = '#1d1c1a'; c.fillText(nm, X, Y + 10);
       }
     }
     // realm names
@@ -245,10 +250,13 @@ export class MapView {
       c.textAlign = 'center'; c.textBaseline = 'middle';
       for (const L of this.labels) {
         const fs = L.size * Math.sqrt(z) * 0.9; if (fs < 8) continue;
-        c.font = `600 ${fs}px "Cinzel", Georgia, serif`;
-        c.lineWidth = Math.max(2, fs / 5); c.strokeStyle = 'rgba(20,14,8,0.55)';
-        c.strokeText(L.name, tx(L.x), ty(L.y));
-        c.fillStyle = 'rgba(255,248,228,0.95)'; c.fillText(L.name, tx(L.x), ty(L.y));
+        c.font = `600 ${fs}px "IBM Plex Serif", Georgia, serif`;
+        if ('letterSpacing' in c) c.letterSpacing = `${(fs * 0.12).toFixed(1)}px`;
+        const label = L.name.toUpperCase();
+        c.lineWidth = Math.max(2, fs / 4.5); c.strokeStyle = 'rgba(23,25,27,0.5)'; c.lineJoin = 'round';
+        c.strokeText(label, tx(L.x), ty(L.y));
+        c.fillStyle = 'rgba(248,246,240,0.96)'; c.fillText(label, tx(L.x), ty(L.y));
+        if ('letterSpacing' in c) c.letterSpacing = '0px';
       }
     }
     // sites
@@ -257,24 +265,33 @@ export class MapView {
       for (const p of M.provinces) {
         if (!p.special || p.special === 'port' || p.special === 'ford') continue;
         const X = tx(p.sx), Y = ty(p.sy);
-        c.font = `${11 + z}px serif`;
-        c.fillStyle = p.special === 'church' ? '#f4eedc' : '#ffd96a';
-        c.strokeStyle = 'rgba(0,0,0,0.6)'; c.lineWidth = 2;
-        const g = p.special === 'tara' ? '♛' : p.special === 'church' ? '✠' : '◆';
-        c.strokeText(g, X, Y); c.fillText(g, X, Y);
+        const r0 = 3 + z * 0.6;
+        c.lineWidth = 1.5; c.strokeStyle = '#17191b';
+        if (p.special === 'church') {
+          // ringed cross
+          c.fillStyle = '#f3f0e9';
+          c.fillRect(X - r0 * 0.28, Y - r0 * 1.2, r0 * 0.56, r0 * 2.4); c.fillRect(X - r0, Y - r0 * 0.45, r0 * 2, r0 * 0.56);
+          c.strokeRect(X - r0 * 0.28, Y - r0 * 1.2, r0 * 0.56, r0 * 2.4);
+          c.beginPath(); c.arc(X, Y - r0 * 0.17, r0 * 0.62, 0, Math.PI * 2); c.stroke();
+        } else {
+          // royal site: diamond, Tara larger and red
+          const rr = p.special === 'tara' ? r0 * 1.5 : r0;
+          c.fillStyle = p.special === 'tara' ? '#a3321f' : '#f3f0e9';
+          c.beginPath(); c.moveTo(X, Y - rr); c.lineTo(X + rr * 0.75, Y); c.lineTo(X, Y + rr); c.lineTo(X - rr * 0.75, Y); c.closePath(); c.fill(); c.stroke();
+        }
       }
     }
     // capitals
     for (const co of S.countries) if (co.alive && co.capital >= 0) {
       const p = M.provinces[co.capital], X = tx(p.sx) + 7, Y = ty(p.sy) - 7;
-      c.fillStyle = co.id === S.player ? '#ffe27a' : '#f2ead2'; c.strokeStyle = '#1a120a'; c.lineWidth = 1.2;
+      c.fillStyle = co.id === S.player ? '#a3321f' : '#f3f0e9'; c.strokeStyle = '#17191b'; c.lineWidth = 1.2;
       c.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? 2.2 : 5; c.lineTo(X + Math.cos(a) * rr, Y + Math.sin(a) * rr); } c.closePath(); c.fill(); c.stroke();
     }
     // sieges
     for (const P of S.provinces) if (P.siege) {
       const p = M.provinces[P.id], X = tx(p.sx), Y = ty(p.sy) + 14;
       c.strokeStyle = '#1a120a'; c.lineWidth = 4; c.beginPath(); c.arc(X, Y, 6, 0, Math.PI * 2); c.stroke();
-      c.strokeStyle = '#ffcc55'; c.lineWidth = 2.5; c.beginPath();
+      c.strokeStyle = '#f3f0e9'; c.lineWidth = 2.5; c.beginPath();
       const pr = fortLevel(P.id) === 0 ? 0.5 : Math.min(1, P.siege.months / 10);
       c.arc(X, Y, 6, -Math.PI / 2, -Math.PI / 2 + pr * Math.PI * 2); c.stroke();
     }
@@ -282,7 +299,7 @@ export class MapView {
     this.armyRects = [];
     const stacks = new Map();
     for (const a of S.armies) { const k = a.loc; if (!stacks.has(k)) stacks.set(k, []); stacks.get(k).push(a); }
-    c.font = '600 11px "Alegreya Sans", system-ui, sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'center';
+    c.font = '600 11px "IBM Plex Sans Condensed", system-ui, sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'center';
     for (const [loc, list] of stacks) {
       const p = M.provinces[loc];
       const battle = list.some(a => list.some(b => isAtWar(a.owner, b.owner)));
@@ -294,26 +311,30 @@ export class MapView {
         const co = S.countries[a.owner];
         const mine = a.owner === S.player;
         if (mine && a.path.length && this.selArmy === a) {
-          c.strokeStyle = '#ffe27a'; c.lineWidth = 2.5; c.setLineDash([5, 4]); c.beginPath();
+          c.strokeStyle = '#a3321f'; c.lineWidth = 2.5; c.setLineDash([6, 4]); c.beginPath();
           c.moveTo(tx(p.sx), ty(p.sy));
           for (const s of a.path) { const q = M.provinces[s]; c.lineTo(tx(q.sx), ty(q.sy)); }
           c.stroke(); c.setLineDash([]);
         }
-        c.fillStyle = 'rgba(18,12,6,0.85)'; roundRect(c, X - 1.5, Y - 1.5, w + 3, h + 3, 5); c.fill();
-        c.fillStyle = co.color; roundRect(c, X, Y, 10, h, 3); c.fill();
-        c.fillStyle = this.selArmy === a ? '#ffe27a' : mine ? '#f6eed8' : '#d8cdb4';
-        roundRect(c, X + 10, Y, w - 10, h, 3); c.fill();
+        c.fillStyle = this.selArmy === a ? '#a3321f' : '#17191b'; c.fillRect(X - 1.5, Y - 1.5, w + 3, h + 3);
+        c.fillStyle = co.color; c.fillRect(X, Y, 9, h);
+        c.fillStyle = mine ? '#f3f0e9' : '#d9d4c8';
+        c.fillRect(X + 9, Y, w - 9, h);
         // morale bar
         const mm = a.morale / Math.max(0.01, (a.troops && 3));
-        c.fillStyle = '#3a9a3a'; c.fillRect(X + 11, Y + h - 3, Math.max(0, Math.min(1, a.morale / 3)) * (w - 12), 2);
-        c.fillStyle = '#1a120a'; c.fillText(txt, X + 10 + (w - 10) / 2, Y + h / 2 - 1);
-        if (a.retreat) { c.fillStyle = '#b33'; c.fillText('↩', X - 6, Y + h / 2); }
+        c.fillStyle = '#2e6a3c'; c.fillRect(X + 9, Y + h - 2, Math.max(0, Math.min(1, a.morale / 3)) * (w - 9), 2);
+        c.fillStyle = '#1d1c1a'; c.fillText(txt, X + 9 + (w - 9) / 2, Y + h / 2 - 1);
+        if (a.retreat) { c.fillStyle = '#a3321f'; c.fillRect(X - 5, Y, 3, h); }
         this.armyRects.push({ x: X, y: Y, w, h, a });
       });
       if (battle) {
-        c.font = '18px serif'; c.fillStyle = '#ff5544'; c.strokeStyle = '#000'; c.lineWidth = 3;
-        c.strokeText('⚔', tx(p.sx), ty(p.sy) + 2); c.fillText('⚔', tx(p.sx), ty(p.sy) + 2);
-        c.font = '600 11px "Alegreya Sans", system-ui, sans-serif';
+        // crossed blades
+        const bx = tx(p.sx), by = ty(p.sy) + 2, k2 = 7;
+        c.lineCap = 'round';
+        c.strokeStyle = '#17191b'; c.lineWidth = 5;
+        c.beginPath(); c.moveTo(bx - k2, by - k2); c.lineTo(bx + k2, by + k2); c.moveTo(bx + k2, by - k2); c.lineTo(bx - k2, by + k2); c.stroke();
+        c.strokeStyle = '#e8573f'; c.lineWidth = 2.5; c.stroke();
+        c.lineCap = 'butt';
       }
     }
   }

@@ -1,5 +1,5 @@
 // Armies, movement, battles, sieges, war score, peace and diplomacy.
-import { ctx, log, clamp } from './ctx.js';
+import { ctx, log, notify, clamp } from './ctx.js';
 import { TERRAIN, UNITS, UNIT_SIZE, WINTER, eraOf } from './data.js';
 import {
   terrainOf, fortLevel, provValue, armyMen, maxMorale, strength, transferProvince, refreshCountry, subjectLimit, addArmy,
@@ -128,7 +128,16 @@ export function declareWar(att, def, cb, target = null, system = false) {
     }
   }
   const involved = war.att.includes(S.player) || war.def.includes(S.player);
-  if (!system || involved) log(`War! ${A.name} declares a ${CB_INFO[cb]?.name || cb} on ${D.name}.`, involved ? 'war' : 'world');
+  const wtxt = `${A.name} declares a ${CB_INFO[cb]?.name || cb} on ${D.name}.`;
+  const pl = S.player;
+  if (involved && att !== pl) {
+    const mySide = war.att.includes(pl) ? war.att : war.def, foes = war.att.includes(pl) ? war.def : war.att;
+    let body = wtxt;
+    if (def === pl) body += ` ${CB_INFO[cb]?.desc || ''}`;
+    else body += ` You are called to fight beside ${S.countries[mySide[0]].name}.`;
+    body += ` Your side: ${mySide.map(name).join(', ')}. Enemies: ${foes.map(name).join(', ')}.`;
+    notify(def === pl ? 'War is declared on you!' : 'Called to war', body, { kind: 'war', prov: target ?? D.capital });
+  } else if (!system || involved) log(`War! ${wtxt}`, involved ? 'war' : 'world');
   return war;
 }
 
@@ -303,7 +312,9 @@ function occupy(P, by) {
   }
   const pl = S.player;
   if (by === pl || P.owner === pl || prevCtrl === pl) {
-    log(liberate ? `${pname(P.id)} is retaken.` : `${name(by)} occupies ${pname(P.id)}.`, by === pl ? 'good' : 'bad', { prov: P.id });
+    const ot = liberate ? `${pname(P.id)} is retaken.` : `${name(by)} occupies ${pname(P.id)}.`;
+    if (!liberate && P.owner === pl && S.countries[pl].capital === P.id) notify('Your capital has fallen', ot + ' Your seat of power is in enemy hands.', { kind: 'bad', prov: P.id });
+    else log(ot, by === pl ? 'good' : 'bad', { prov: P.id });
   }
 }
 
@@ -410,12 +421,16 @@ export function applyPeace(w, winnerSide, terms) {
   W.prestige = Math.min(100, W.prestige + 10); L.prestige -= 10;
   if (terms.provs?.length) L.stability = clamp(L.stability - 1, -3, 3);
   const involved = [...w.att, ...w.def].includes(S.player);
-  log(`Peace: ${W.name} wins against ${L.name}${parts.length ? ' — ' + parts.join(', ') : ' (white peace)'}.`, involved ? (winners.includes(S.player) ? 'good' : 'bad') : 'world');
+  const ptxt = `Peace: ${W.name} wins against ${L.name}${parts.length ? ' — ' + parts.join(', ') : ' (white peace)'}.`;
+  if (involved && w.al !== S.player && w.dl !== S.player) notify('Peace is made', ptxt + ' The war you fought in is over.', { kind: winners.includes(S.player) ? 'good' : 'bad' });
+  else log(ptxt, involved ? (winners.includes(S.player) ? 'good' : 'bad') : 'world');
   endWar(w);
 }
 export function whitePeace(w) {
   const S = S_();
-  log(`White peace in ${w.name}.`, [...w.att, ...w.def].includes(S.player) ? 'info' : 'world');
+  const inv = [...w.att, ...w.def].includes(S.player);
+  if (inv && w.al !== S.player && w.dl !== S.player) notify('Peace is made', `White peace in ${w.name}. The war you fought in is over.`, { kind: 'info' });
+  else log(`White peace in ${w.name}.`, inv ? 'info' : 'world');
   endWar(w);
 }
 export function endWar(w) {

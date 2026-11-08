@@ -5,6 +5,7 @@ import { POLITIES } from './data.js';
 import { createGame, tick, refreshCountry } from './game.js';
 import { orderMove, findPath } from './war.js';
 import { MapView } from './render.js';
+import { ic } from './icons.js';
 import {
   UI, bindUI, openPanel, closePanel, renderHUD, renderPanel, refreshAll, toast, showPending, modalOpen, showModal, hideModal,
   selectArmy, registerActions, helpHTML,
@@ -12,7 +13,7 @@ import {
 
 const $ = s => document.querySelector(s);
 const SPEEDS = [0, 1000, 500, 220, 90, 25];
-let speed = 0, lastSpeed = 2, timer = null, view, M, startSel = null;
+let speed = 2, paused = true, timer = null, view, M, startSel = null;
 const MAP_SEED = 1171;
 
 try { const th = localStorage.getItem('eire.theme'); if (th && th !== 'auto') document.documentElement.dataset.theme = th; } catch {}
@@ -25,6 +26,7 @@ async function boot() {
   UI.view = view;
   view.setMap(M);
   bindUI();
+  document.querySelectorAll('[data-icon]').forEach(el => el.insertAdjacentHTML('afterbegin', ic(el.dataset.icon)));
   bindInput();
   registerActions({
     save: () => { save('eire.save'); toast('Game saved.', 'good'); },
@@ -32,10 +34,10 @@ async function boot() {
     loadauto: () => load('eire.auto'),
     newgame: () => { if (confirm('Abandon this game and start again?')) location.reload(); },
   });
-  UI.pause = () => setSpeed(0);
+  UI.pause = () => pause();
   UI.resume = () => {};
   ctx.listeners.push(e => {
-    if (['good', 'bad', 'war', 'warn', 'ruler'].includes(e.kind)) toast(e.text, e.kind);
+    if (!e.popup && ['good', 'bad', 'war', 'warn', 'ruler'].includes(e.kind)) toast(e.text, e.kind);
   });
   // preview game for the start screen (world state only, not yet played)
   createGame(M, POLITIES[0].tag, (Math.random() * 1e9) | 0);
@@ -57,14 +59,17 @@ function startScreen() {
   view.highlight = new Set([sel]); view.repaintAll();
   if (!startScreen.fitted) { startScreen.fitted = true; view.fit(); }
   body.innerHTML = `
-    ${hasSave ? `<div class="btns"><button class="btn gold" id="cont">Continue saved game</button></div>` : ''}
-    <p class="muted">Choose a kingdom — tap one on the map or in the list.</p>
-    <div class="ruler" style="display:block"><b style="font-family:Cinzel,serif">${c.name}</b> <span class="muted">· ${c.provs.length} territories · ${Math.round(c.pop / 1000)}k people</span><div class="muted"><i>${c.desc}</i></div></div>
+    ${hasSave ? `<div class="btns" style="margin-top:0"><button class="btn gold" id="cont">Continue saved game</button></div>` : ''}
+    <h3 style="margin-top:${hasSave ? 18 : 0}px">Choose a kingdom</h3>
+    <div class="pick"><div class="nm"><span class="dot" style="background:${c.color}"></span>${c.name}</div>
+      <div class="meta">${c.provs.length} territories · ${Math.round(c.pop / 1000)}k people · seat at ${M.provinces[c.capital].name.replace(/\s*\(.*\)/, '')}</div>
+      <p>${c.desc}</p></div>
     <div class="pol-list">${list.map(o => `<div class="row click ${o.id === sel ? 'on' : ''}" data-pick="${o.id}"><span class="dot" style="background:${o.color}"></span><div class="grow">${o.name}</div><span class="muted">${o.provs.length}</span></div>`).join('')}</div>
     <div class="btns"><button class="btn gold" id="go">Rule ${c.name}</button><button class="btn" id="how">How to play</button></div>
-    <p class="muted" style="font-size:12px">Territories are parish-scale divisions grown from real historic sites over real terrain. The map is the same every game; history is not.</p>`;
+    <p class="fine">Tap any realm on the map to select it. Territories are parish-scale divisions grown from real historic sites over real terrain. The map is the same every game; history is not.</p>`;
   body.querySelectorAll('[data-pick]').forEach(el => el.onclick = () => { startSel = +el.dataset.pick; startScreen(); });
-  const on = body.querySelector('.row.on'); if (on) on.scrollIntoView({ block: 'nearest' });
+  const on = body.querySelector('.row.on'), L = body.querySelector('.pol-list');
+  if (on) L.scrollTop = on.offsetTop - L.offsetTop - L.clientHeight / 2 + on.clientHeight / 2;
   $('#go').onclick = () => begin(c.tag);
   $('#how').onclick = () => showModal(helpHTML() + `<div class="opts"><button class="btn gold" data-act="pclose">Close</button></div>`);
   if (hasSave) $('#cont').onclick = () => load(localStorage.getItem('eire.save') ? 'eire.save' : 'eire.auto');
@@ -75,7 +80,7 @@ function begin(tag) {
   enterGame();
   openPanel('realm');
   showModal(`<h2>${ctx.S.countries[ctx.S.player].name}, 1 AD</h2><p>The island is a patchwork of túatha under petty kings. You rule from <b>${M.provinces[ctx.S.countries[ctx.S.player].capital].name}</b>.</p>
-    <p class="muted">Tip: name a tanist in the Realm panel, build a ringfort, and look to your neighbours. Press a speed button to let time run.</p>
+    <p class="muted">Name a tanist in the Realm panel, build a ringfort, and look to your neighbours. Press a speed button to let time run.</p>
     <div class="opts"><button class="btn gold" data-act="pclose">Begin</button></div>`);
 }
 function enterGame() {
@@ -87,7 +92,7 @@ function enterGame() {
   const cap = S.countries[S.player].capital;
   view.centerOn(cap, Math.max(1.6, view.zoom * 1.8));
   buildMapModes();
-  setSpeed(0);
+  pause();
   refreshAll();
 }
 
@@ -107,12 +112,20 @@ function buildMapModes() {
 }
 
 // ---------- game loop ----------
-function setSpeed(s) {
-  speed = s; if (s > 0) lastSpeed = s;
+// Pause and speed are independent: 1–5 only pick the speed, ❚❚/▶ starts and stops the clock.
+function applyTimer() {
   clearInterval(timer); timer = null;
-  if (s > 0) timer = setInterval(step, SPEEDS[s]);
-  document.querySelectorAll('#speed button').forEach(b => b.classList.toggle('on', +b.dataset.speed === s));
+  if (!paused) timer = setInterval(step, SPEEDS[speed]);
+  document.querySelectorAll('#speed button').forEach(b => {
+    const s = +b.dataset.speed;
+    b.classList.toggle('on', s === 0 ? paused : s === speed);
+  });
+  const pb = document.querySelector('#speed [data-speed="0"]');
+  pb.innerHTML = ic(paused ? 'play' : 'pause'); pb.title = paused ? 'Play (space)' : 'Pause (space)';
+  pb.classList.toggle('paused', paused);
 }
+function setSpeed(s) { if (s === 0) paused = !paused; else speed = s; applyTimer(); }
+function pause() { paused = true; applyTimer(); }
 let lastPanel = 0, lastFull = 0;
 function step() {
   const S = ctx.S;
@@ -127,8 +140,8 @@ function step() {
   renderHUD();
   if (now - lastPanel > 300) { renderPanel(); lastPanel = now; }
   view.needs = true;
-  if (S.over) { setSpeed(0); gameOver(); return; }
-  if (S.pending.length && showPending()) { setSpeed(0); UI.resume = () => setSpeed(lastSpeed); }
+  if (S.over) { pause(); gameOver(); return; }
+  if (S.pending.length) showPending(); // an open pop-up holds the clock until dismissed
 }
 function gameOver() {
   const S = ctx.S, o = S.over;
@@ -178,7 +191,7 @@ function bindInput() {
   document.querySelectorAll('#speed button').forEach(b => b.onclick = () => setSpeed(+b.dataset.speed));
   window.addEventListener('keydown', e => {
     if (!ctx.S || $('#hud').classList.contains('hidden')) return;
-    if (e.code === 'Space') { e.preventDefault(); setSpeed(speed ? 0 : lastSpeed); }
+    if (e.code === 'Space') { e.preventDefault(); setSpeed(0); }
     else if (/^Digit[1-5]$/.test(e.code)) setSpeed(+e.code.slice(5));
     else if (e.code === 'Escape') { if (UI.army) selectArmy(null); else closePanel(); }
   });

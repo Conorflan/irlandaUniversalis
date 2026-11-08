@@ -7,6 +7,7 @@ import {
 import * as Gm from './game.js';
 import * as War from './war.js';
 import { EVENTS, resolveEvent } from './events.js';
+import { ic, cost } from './icons.js';
 
 const $ = s => document.querySelector(s);
 const S = () => ctx.S, M = () => ctx.M;
@@ -54,15 +55,15 @@ export function renderHUD() {
   $('#hud-realm .swatch').style.background = c.color;
   $('#hud-realm .nm').textContent = c.name.replace(/\s*\(.*\)/, '');
   const net = c.income - c.expense;
-  const coin = s.instOn.norse_trade ? '🪙' : '🐄';
+  const coin = s.instOn.norse_trade ? 'coin' : 'cattle';
   $('#res').innerHTML = `
-    <span class="r" title="Treasury (monthly balance)">${coin}<b>${fmt(c.gold)}</b><small class="${net >= 0 ? '' : 'bad'}">${net >= 0 ? '+' : ''}${net.toFixed(1)}</small></span>
-    <span class="r" title="Manpower / max">⚔<b>${fmt(c.manpower)}</b><small>/${fmt(c.maxMP)}</small></span>
-    <span class="r pts" title="Rule (administrative) points" data-act="tab" data-tab="tech">⚖<b>${Math.floor(c.adm)}</b></span>
-    <span class="r pts" title="Diplomacy points" data-act="tab" data-tab="diplo">✉<b>${Math.floor(c.dip)}</b></span>
-    <span class="r pts" title="War points" data-act="tab" data-tab="military">⛨<b>${Math.floor(c.mil)}</b></span>
-    <span class="r" title="Stability">⚓<b class="${c.stability < 0 ? 'bad' : ''}">${c.stability > 0 ? '+' : ''}${c.stability}</b></span>
-    <span class="r" title="Prestige">✶<b>${Math.round(c.prestige)}</b></span>`;
+    <span class="r" title="Treasury and monthly balance">${ic(coin)}<b>${fmt(c.gold)}</b><small class="${net >= 0 ? '' : 'bad'}">${net >= 0 ? '+' : ''}${net.toFixed(1)}</small></span>
+    <span class="r" title="Manpower / maximum">${ic('men')}<b>${fmt(c.manpower)}</b><small>/ ${fmt(c.maxMP)}</small></span>
+    <span class="r pts" title="Rule points" data-act="tab" data-tab="tech">${ic('adm')}<b>${Math.floor(c.adm)}</b></span>
+    <span class="r pts" title="Diplomacy points" data-act="tab" data-tab="diplo">${ic('dip')}<b>${Math.floor(c.dip)}</b></span>
+    <span class="r pts" title="War points" data-act="tab" data-tab="military">${ic('mil')}<b>${Math.floor(c.mil)}</b></span>
+    <span class="r" title="Stability">${ic('stab')}<b class="${c.stability < 0 ? 'bad' : ''}">${c.stability > 0 ? '+' : ''}${c.stability}</b></span>
+    <span class="r" title="Prestige">${ic('prestige')}<b>${Math.round(c.prestige)}</b></span>`;
   $('#date').innerHTML = `${MONTHS[s.month]} ${s.year} AD<small>${eraOf(s.year).name}</small>`;
 }
 
@@ -73,8 +74,8 @@ function province() {
   const t = Gm.terrainOf(id), T = TERRAIN[t];
   const mine = P.owner === c.id;
   const K = Gm.capacity(id);
-  let h = `<h2>${pn(id)}</h2><div class="muted">${T.name} · ${p.areaKm} km²${p.coastal ? ' · coastal' : ''}${p.lakeside ? ' · lakeshore' : ''}</div>`;
-  if (o) h += `<div class="row click" data-act="country" data-id="${o.id}">${dot(o)}<div class="grow"><b>${esc(o.name)}</b>${P.controller !== P.owner ? ` <span class="chip war">occupied by ${cn(P.controller)}</span>` : ''}</div><span class="muted">›</span></div>`;
+  let h = `<div class="band" style="--c:${o ? o.color : 'var(--ink-3)'}"></div><h2>${pn(id)}</h2><div class="meta">${T.name} · ${p.areaKm} km²${p.coastal ? ' · coastal' : ''}${p.lakeside ? ' · lakeshore' : ''}</div>`;
+  if (o) h += `<div class="row click" data-act="country" data-id="${o.id}">${dot(o)}<div class="grow"><b>${esc(o.name)}</b>${P.controller !== P.owner ? ` <span class="chip war">occupied by ${cn(P.controller)}</span>` : ''}</div><span class="go">${ic('chev')}</span></div>`;
   h += `<div class="grid">
     ${stat('Population', fmt(P.pop), `capacity ${fmt(K)}`)}
     ${stat('Cattle', fmt(P.cattle))}
@@ -85,12 +86,12 @@ function province() {
     ${stat('Devastation', Math.round(P.devast) + '%')}
     ${stat('Forest', Math.round(p.forestShare * P.forest * 100) + '%')}
   </div>`;
-  h += `<div class="muted" style="margin-top:6px">Terrain: move ×${T.move}, defender +${T.def} dice, horse ×${T.cav}, kern ×${T.light}${T.atr ? `, attrition +${T.atr}%` : ''}</div>`;
+  h += `<p class="muted">Terrain: move ×${T.move}, defender +${T.def} dice, horse ×${T.cav}, kern ×${T.light}${T.atr ? `, attrition +${T.atr}%` : ''}</p>`;
   h += `<div style="margin-top:6px"><span class="chip">${cultureName(P.culture)}</span><span class="chip">${religionName(P.religion)}</span>${P.plague ? '<span class="chip war">plague</span>' : ''}`;
   if (P.cores.length) h += ` <span class="muted">Cores:</span> ${P.cores.map(k => `<span class="chip">${cn(k)}</span>`).join('')}`;
   if (P.claims.length) h += ` <span class="muted">Claims:</span> ${P.claims.map(k => `<span class="chip">${cn(k)}</span>`).join('')}`;
   h += `</div>`;
-  if (P.siege) h += `<div class="warn" style="margin-top:6px">Besieged by ${cn(P.siege.by)} — ${P.siege.months} month(s)${P.siege.chance ? `, ${Math.round(P.siege.chance * 100)}%/month` : ''}</div>`;
+  if (P.siege) h += `<div class="note">Besieged by ${cn(P.siege.by)} — ${P.siege.months} month(s)${P.siege.chance ? `, ${Math.round(P.siege.chance * 100)}%/month` : ''}</div>`;
   // institutions
   const on = INSTITUTIONS.filter(i => s.instOn[i.id]);
   if (on.length) {
@@ -106,14 +107,14 @@ function province() {
       h += `<div style="margin-top:6px">`;
       for (const b of opts) {
         const B = BUILDINGS[b], ok = Gm.canBuild(c, id, b) && c.gold >= B.cost;
-        h += `<div class="row"><div class="grow"><b>${B.name}</b><div class="muted">${B.desc}</div></div><button class="btn sm" data-act="build" data-b="${b}" ${ok ? '' : 'disabled'}>${B.cost} 🪙</button></div>`;
+        h += `<div class="row"><div class="grow"><b>${B.name}</b><div class="muted">${B.desc}</div></div><button class="btn sm" data-act="build" data-b="${b}" ${ok ? '' : 'disabled'}>${cost(B.cost, 'gold')}</button></div>`;
       }
       h += `</div>`;
     }
-    h += `<h3>Actions</h3><div class="btns">`;
-    if (!P.cores.includes(c.id)) h += `<button class="btn" data-act="core" ${c.adm >= Gm.coreCost(c, id) ? '' : 'disabled'}>Make core (${Gm.coreCost(c, id)} ⚖)</button>`;
-    if (Gm.canClear(c, id)) { const cc = Gm.clearCost(c, id); h += `<button class="btn" data-act="clear" ${c.gold >= cc.gold && c.adm >= cc.adm ? '' : 'disabled'}>Clear forest (${cc.gold} 🪙, ${cc.adm} ⚖)</button>`; }
-    h += `</div>`;
+    let acts = '';
+    if (!P.cores.includes(c.id)) acts += `<button class="btn" data-act="core" ${c.adm >= Gm.coreCost(c, id) ? '' : 'disabled'}>Make core ${cost(Gm.coreCost(c, id), 'adm')}</button>`;
+    if (Gm.canClear(c, id)) { const cc = Gm.clearCost(c, id); acts += `<button class="btn" data-act="clear" ${c.gold >= cc.gold && c.adm >= cc.adm ? '' : 'disabled'}>Clear forest ${cost(cc.gold, 'gold')} ${cost(cc.adm, 'adm')}</button>`; }
+    if (acts) h += `<h3>Actions</h3><div class="btns">${acts}</div>`;
     if (Gm.canRecruitAt(c, id)) {
       h += `<h3>Raise troops</h3><div class="muted">Manpower ${fmt(c.manpower)} · units of ${UNIT_SIZE} men</div>`;
       for (const u of Gm.recruitOptions(c)) {
@@ -126,7 +127,7 @@ function province() {
     }
   } else if (o) {
     h += `<h3>Actions</h3><div class="btns">`;
-    if (!P.claims.includes(c.id) && !P.cores.includes(c.id)) h += `<button class="btn" data-act="claim" ${c.dip >= Gm.claimCost(c) ? '' : 'disabled'}>Fabricate claim (${Gm.claimCost(c)} ✉)</button>`;
+    if (!P.claims.includes(c.id) && !P.cores.includes(c.id)) h += `<button class="btn" data-act="claim" ${c.dip >= Gm.claimCost(c) ? '' : 'disabled'}>Fabricate claim ${cost(Gm.claimCost(c), 'dip')}</button>`;
     h += `<button class="btn" data-act="country" data-id="${o.id}">Diplomacy with ${esc(o.name)}</button></div>`;
   }
   const armies = s.armies.filter(a => a.loc === id);
@@ -136,33 +137,33 @@ function province() {
   }
   return h;
 }
-function stat(k, v, sub = '') { return `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div>${sub ? `<div class="muted" style="font-size:11px">${sub}</div>` : ''}</div>`; }
+function stat(k, v, sub = '') { return `<div class="stat"><span class="k">${k}</span><span class="v">${v}</span>${sub ? `<div class="s">${sub}</div>` : ''}</div>`; }
 function armyRow(a) {
   const s = S(), co = s.countries[a.owner], men = Gm.armyMen(a);
   const comp = Object.entries(a.troops).filter(([, n]) => n >= 1).map(([t, n]) => `${UNITS[t].name.split(' (')[0]} ${Math.round(n)}`).join(', ');
   const mine = a.owner === s.player;
   return `<div class="row ${mine ? 'click' : ''}" ${mine ? `data-act="selarmy" data-id="${a.id}"` : ''}>${dot(co)}<div class="grow"><b>${fmt(men)} men</b> <span class="muted">· ${pn(a.loc)}${a.path.length ? ` → ${pn(a.path[a.path.length - 1])}` : ''}</span><div class="muted">${comp}</div>
-    <div class="bar"><i style="width:${Math.min(100, a.morale / Gm.maxMorale(a) * 100)}%;background:#3a9a3a"></i></div></div>${mine ? `<span class="muted">${UI.army === a ? '✔' : '›'}</span>` : ''}</div>`;
+    <div class="bar"><i style="width:${Math.min(100, a.morale / Gm.maxMorale(a) * 100)}%;background:#3a9a3a"></i></div></div>${mine ? `<span class="go">${ic(UI.army === a ? 'check' : 'chev')}</span>` : ''}</div>`;
 }
 
 // ---------- Realm ----------
 function realm() {
   const s = S(), c = me();
   const rank = c.outsider ? c.rank : RANKS.find(r => r.id === c.rank).name;
-  let h = `<h2>${esc(c.name)}</h2><div class="muted">${rank} · ${cultureName(c.culture)} · ${religionName(c.religion)}${c.overlord >= 0 ? ` · client of ${cn(c.overlord)}` : ''}</div>`;
-  if (s.ardRi === c.id) h += `<div class="chip good" style="margin-top:6px">♛ Ard Rí — High King of Ireland</div>`;
+  let h = `<div class="band" style="--c:${c.color}"></div><h2>${esc(c.name)}</h2><div class="meta">${rank} · ${cultureName(c.culture)} · ${religionName(c.religion)}${c.overlord >= 0 ? ` · client of ${cn(c.overlord)}` : ''}</div>`;
+  if (s.ardRi === c.id) h += `<div class="note" style="border-color:var(--good)"><b>Ard Rí</b> — you hold the High Kingship of Ireland.</div>`;
   h += rulerCard('Ruler', c.ruler);
   if (c.laws.succession === 'tanistry') {
     if (c.tanist) h += rulerCard('Tanist (heir)', c.tanist);
     else {
-      h += `<div class="warn" style="margin:6px 0"><b>No tanist named.</b> If the king dies now the derbfine will fight over the kingship (−2 stability, unrest).</div>`;
+      h += `<div class="note bad"><b>No tanist named.</b> If the king dies now the derbfine will fight over the kingship (−2 stability, unrest).</div>`;
       Gm.tanistCandidates(c).forEach((r, i) => {
-        h += `<div class="row"><div class="grow">${esc(r.name)}, ${Math.floor(r.age)} <span class="muted">⚖${r.adm} ✉${r.dip} ⛨${r.mil}</span></div><button class="btn sm" data-act="tanist" data-i="${i}" ${c.dip >= 25 ? '' : 'disabled'}>Name tanist (25 ✉)</button></div>`;
+        h += `<div class="row"><div class="grow">${esc(r.name)}, ${Math.floor(r.age)} <span class="muted">Rule ${r.adm} · Diplomacy ${r.dip} · War ${r.mil}</span></div><button class="btn sm" data-act="tanist" data-i="${i}" ${c.dip >= 25 ? '' : 'disabled'}>Name tanist ${cost(25, 'dip')}</button></div>`;
       });
     }
   } else if (c.heir) h += rulerCard('Heir', c.heir);
   h += `<h3>State of the realm</h3><div class="grid">
-    ${stat('Stability', (c.stability > 0 ? '+' : '') + c.stability, c.stability < 3 ? `<button class="btn sm" data-act="stab" ${c.adm >= Gm.stabCost(c) ? '' : 'disabled'}>Raise (${Gm.stabCost(c)} ⚖)</button>` : '')}
+    ${stat('Stability', (c.stability > 0 ? '+' : '') + c.stability, c.stability < 3 ? `<button class="btn sm" data-act="stab" ${c.adm >= Gm.stabCost(c) ? '' : 'disabled'}>Raise ${cost(Gm.stabCost(c), 'adm')}</button>` : '')}
     ${stat('Prestige', Math.round(c.prestige))}
     ${stat('Income', c.income.toFixed(1), `upkeep ${c.expense.toFixed(1)}`)}
     ${stat('Territories', c.provs.length)}
@@ -171,12 +172,12 @@ function realm() {
     ${stat('War exhaustion', c.we.toFixed(1))}
     ${stat('Technology', `${c.tech.adm}/${c.tech.dip}/${c.tech.mil}`)}
   </div>`;
-  if (c.backlash > 0) h += `<div class="warn">Traditionalist backlash: ${c.backlash} months left (+2 unrest).</div>`;
-  if (c.dispute > 0) h += `<div class="warn">Succession dispute: ${c.dispute} months left (+3 unrest).</div>`;
-  h += `<h3>Laws &amp; customs</h3><div class="muted">Changing a law costs 100 ⚖ and 1 stability.</div>`;
+  if (c.backlash > 0) h += `<div class="note">Traditionalist backlash: ${c.backlash} months left (+2 unrest).</div>`;
+  if (c.dispute > 0) h += `<div class="note bad">Succession dispute: ${c.dispute} months left (+3 unrest).</div>`;
+  h += `<h3>Laws &amp; customs</h3><div class="muted">Changing a law costs 100 rule points and 1 stability.</div>`;
   const catName = { succession: 'Succession', law: 'Law', army: 'Military service' };
   for (const cat in LAWS) {
-    h += `<div style="margin-top:6px"><b>${catName[cat]}</b></div>`;
+    h += `<div class="meta" style="margin-top:14px;color:var(--ink)">${catName[cat]}</div>`;
     for (const [k, L] of Object.entries(LAWS[cat])) {
       const cur = c.laws[cat] === k;
       if (!cur && !L.req(c, s)) continue;
@@ -188,38 +189,38 @@ function realm() {
   if (!on.length) h += `<div class="muted">None yet. Christianity arrives c. 432 AD.</div>`;
   for (const i of on) {
     const share = Math.round(Gm.instShare(c, i.id) * 100);
-    h += `<div class="row"><div class="grow"><b>${i.name}</b> <span class="muted">${share}% of your people</span><div class="muted">${i.desc}</div></div>${c.inst[i.id] ? '<span class="chip good">embraced</span>' : `<button class="btn sm" data-act="embrace" data-k="${i.id}" ${Gm.canEmbrace(c, i.id) && c.gold >= Gm.embraceCost(c, i.id) ? '' : 'disabled'}>Embrace (${Gm.embraceCost(c, i.id)} 🪙)</button>`}</div>`;
+    h += `<div class="row"><div class="grow"><b>${i.name}</b> <span class="muted">· ${share}% of your people</span><div class="muted">${i.desc}</div></div>${c.inst[i.id] ? '<span class="chip good">embraced</span>' : `<button class="btn sm" data-act="embrace" data-k="${i.id}" ${Gm.canEmbrace(c, i.id) && c.gold >= Gm.embraceCost(c, i.id) ? '' : 'disabled'}>Embrace ${cost(Gm.embraceCost(c, i.id), 'gold')}</button>`}</div>`;
   }
   if (c.subjects.length) {
     h += `<h3>Client kingdoms (${c.subjects.length}/${Gm.subjectLimit(c)})</h3>`;
-    for (const k of c.subjects) h += `<div class="row click" data-act="country" data-id="${k}">${dot(s.countries[k])}<div class="grow">${cn(k)}</div><span class="muted">›</span></div>`;
+    for (const k of c.subjects) h += `<div class="row click" data-act="country" data-id="${k}">${dot(s.countries[k])}<div class="grow">${cn(k)}</div><span class="go">${ic('chev')}</span></div>`;
   } else h += `<h3>Client kingdoms</h3><div class="muted">You may hold up to ${Gm.subjectLimit(c)}. Demand hostages from weaker neighbours in Diplomacy.</div>`;
-  h += `<h3>The High Kingship</h3><div class="muted">${s.ardRi >= 0 ? `${cn(s.ardRi)} holds the title.` : 'The title is vacant.'} A Gaelic king who holds Tara (directly or through a client) and is a provincial king, or has 3+ clients, may claim it: +1 ✉/month, −1 unrest, more clients, and a Conquest casus belli.</div>`;
+  h += `<h3>The High Kingship</h3><div class="muted">${s.ardRi >= 0 ? `${cn(s.ardRi)} holds the title.` : 'The title is vacant.'} A Gaelic king who holds Tara (directly or through a client) and is a provincial king, or has 3+ clients, may claim it: +1 diplomacy point a month, −1 unrest, more clients, and a Conquest casus belli.</div>`;
   return h;
 }
 function rulerCard(label, r) {
   return `<div class="ruler"><div class="grow"><div class="muted">${label}</div><b>${esc(r.name)}</b> <span class="muted">age ${Math.floor(r.age)}${r.age < 16 ? ' (regency)' : ''}</span></div>
-    <div class="sk"><span title="Rule">⚖<b>${r.adm}</b></span><span title="Diplomacy">✉<b>${r.dip}</b></span><span title="War">⛨<b>${r.mil}</b></span></div></div>`;
+    <div class="sk"><span title="Rule">${ic('adm')}<b>${r.adm}</b></span><span title="Diplomacy">${ic('dip')}<b>${r.dip}</b></span><span title="War">${ic('mil')}<b>${r.mil}</b></span></div></div>`;
 }
 
 // ---------- Technology ----------
 function tech() {
   const s = S(), c = me();
   const e = eraOf(s.year);
-  let h = `<h2>Learning</h2><div class="muted">Spend points to advance. Research ahead of its time costs more, and more than 25 years early angers the old families (stability loss and unrest). You cannot go more than 100 years early, and some advances need an institution first.</div>`;
-  h += `<div class="tabs2">${ERAS.map(x => `<button class="${x.id === e.id ? 'on' : ''}" title="${esc(x.desc)}">${x.name} ${x.start}</button>`).join('')}</div>`;
+  let h = `<div class="band"></div><h2>Learning</h2><p class="lede">Spend points to advance. Research ahead of its time costs more, and more than 25 years early angers the old families (stability loss and unrest). You cannot go more than 100 years early, and some advances need an institution first.</p>`;
+  h += `<div class="era-line">${ERAS.map(x => `<span class="${x.id === e.id ? 'on' : x.start < e.start ? 'past' : ''}" title="${esc(x.name)}: ${esc(x.desc)}">${x.start}</span>`).join('')}</div><div class="meta">${e.name} — ${esc(e.desc)}</div>`;
   for (const t of ['adm', 'dip', 'mil']) {
     const st = Gm.techStatus(c, t);
-    h += `<div class="tech-col"><div style="display:flex;align-items:baseline;gap:8px"><span class="lvl">${c.tech[t]}</span><b>${TECH_NAMES[t]}</b><span class="muted" style="margin-left:auto">${Math.floor(c[t])} points</span></div>
+    h += `<div class="tech-col"><div class="hd"><span class="lvl">${c.tech[t]}</span><b>${TECH_NAMES[t]}</b><span class="muted">${cost(Math.floor(c[t]), t)}</span></div>
       <div class="muted">${TECH_INFO[t]}</div>`;
     if (st.max) h += `<div>Fully advanced.</div>`;
     else {
       const aheadTxt = st.ahead > 0 ? `<span class="${st.ahead > 25 ? 'bad' : 'warn'}">${st.ahead} years ahead of its time (+${Math.round(st.ahead / 40 * 100)}% cost${st.ahead > 25 ? ', backlash!' : ''})</span>` : '<span class="good">on time</span>';
-      h += `<div style="margin:6px 0">Next: level ${st.lvl} (${st.year} AD) — ${aheadTxt}</div>`;
+      h += `<div style="margin:8px 0 2px">Next: level ${st.lvl} (${st.year} AD) — ${aheadTxt}</div>`;
       const unl = unlocksAt(t, st.lvl);
       if (unl) h += `<div class="muted">Unlocks: ${unl}</div>`;
       if (st.block) h += `<div class="bad">${st.block}</div>`;
-      h += `<button class="btn gold" style="margin-top:6px" data-act="research" data-t="${t}" ${!st.block && c[t] >= st.cost ? '' : 'disabled'}>Research (${st.cost})</button>`;
+      h += `<button class="btn gold" style="margin-top:6px" data-act="research" data-t="${t}" ${!st.block && c[t] >= st.cost ? '' : 'disabled'}>Research ${cost(st.cost, t)}</button>`;
     }
     h += `</div>`;
   }
@@ -249,7 +250,7 @@ function relTag(c, o) {
 }
 function diplo() {
   const s = S(), c = me();
-  let h = `<h2>Diplomacy</h2>`;
+  let h = `<div class="band"></div><h2>Diplomacy</h2>`;
   const wars = War.warsOf(c.id);
   if (wars.length) {
     h += `<h3>Wars</h3>`;
@@ -281,16 +282,16 @@ function country() {
   if (o.id === c.id) return realm();
   const rank = o.outsider ? o.rank : RANKS.find(r => r.id === o.rank)?.name;
   const ratio = Gm.strength(c.id) / Math.max(1, Gm.strength(o.id));
-  let h = `<h2>${dot(o)} ${esc(o.name)}</h2><div class="muted">${rank} · ${cultureName(o.culture)} · ${religionName(o.religion)}</div><div>${relTag(c, o)}</div>`;
-  if (o.desc) h += `<p class="muted"><i>${esc(o.desc)}</i></p>`;
+  let h = `<div class="band" style="--c:${o.color}"></div><h2>${esc(o.name)}</h2><div class="meta">${rank} · ${cultureName(o.culture)} · ${religionName(o.religion)}</div><div>${relTag(c, o)}</div>`;
+  if (o.desc) h += `<p class="lede">${esc(o.desc)}</p>`;
   h += rulerCard('Ruler', o.ruler);
   h += `<div class="grid">${stat('Opinion of you', Math.round(o.rel[c.id] || 0))}${stat('Territories', o.provs.length)}${stat('Army', fmt(Gm.countryArmyMen(o.id)))}${stat('Your strength', `×${ratio.toFixed(1)}`)}${stat('Technology', `${o.tech.adm}/${o.tech.dip}/${o.tech.mil}`)}${stat('Allies', o.allies.length)}</div>`;
   if (!o.alive) return h;
   h += `<h3>Actions</h3>`;
   const act = (a, label, ok, why = '') => `<div class="row"><div class="grow">${label}${why ? `<div class="muted">${why}</div>` : ''}</div><button class="btn sm" data-act="${a}" data-id="${o.id}" ${ok ? '' : 'disabled'}>Do it</button></div>`;
   const atWar = War.isAtWar(c.id, o.id);
-  h += act('improve', `Send envoys (+25 opinion, 15 ✉)`, c.dip >= 15 && !atWar);
-  h += act('gift', `Send gifts of cattle (+30 opinion, ${War.DIP.giftCost(c, o)} 🪙)`, c.gold >= War.DIP.giftCost(c, o) && !atWar);
+  h += act('improve', `Send envoys <span class="muted">+25 opinion</span> ${cost(15, 'dip')}`, c.dip >= 15 && !atWar);
+  h += act('gift', `Send gifts of cattle <span class="muted">+30 opinion</span> ${cost(War.DIP.giftCost(c, o), 'gold')}`, c.gold >= War.DIP.giftCost(c, o) && !atWar);
   if (c.allies.includes(o.id)) h += act('breakally', 'Break alliance', true);
   else h += act('ally', 'Propose alliance', !atWar, War.DIP.wouldAlly(o, c) ? '<span class="good">They would accept</span>' : 'Needs opinion ≥ 30, max 3 allies, neither a client');
   if (!c.fostered.includes(o.id)) h += act('foster', 'Exchange foster-sons (+40 opinion both ways, +2 prestige)', War.DIP.wouldFoster(o, c) && c.fostered.length < 4, War.DIP.wouldFoster(o, c) ? '' : 'Needs opinion ≥ 0, at most 4 fosterage ties');
@@ -298,7 +299,7 @@ function country() {
     const odds = War.DIP.hostageOdds(c, o);
     h += act('hostages', 'Demand hostages (make them a client kingdom)', War.DIP.canDemandHostages(c, o), War.DIP.canDemandHostages(c, o) ? (odds.ok ? '<span class="good">They are likely to submit</span>' : `They will refuse (you need ×2.5 strength, you have ×${odds.ratio.toFixed(1)}) — but refusal gives you a war goal`) : 'Must border them, they must be independent, Gaelic and without clients; check your client limit');
   } else {
-    h += act('annex', `Absorb client (${War.DIP.annexCost(c, o)} ✉)`, War.DIP.canAnnex(c, o) && c.dip >= War.DIP.annexCost(c, o), 'After 10 years as a client and opinion ≥ 50');
+    h += act('annex', `Absorb client ${cost(War.DIP.annexCost(c, o), 'dip')}`, War.DIP.canAnnex(c, o) && c.dip >= War.DIP.annexCost(c, o), 'After 10 years as a client and opinion ≥ 50');
     h += act('release', 'Release client', true);
   }
   if (!atWar) {
@@ -318,7 +319,7 @@ function country() {
 function military() {
   const s = S(), c = me();
   const mine = s.armies.filter(a => a.owner === c.id);
-  let h = `<h2>Military</h2><div class="grid">${stat('Men under arms', fmt(mine.reduce((t, a) => t + Gm.armyMen(a), 0)))}${stat('Manpower', `${fmt(c.manpower)} / ${fmt(c.maxMP)}`)}${stat('Upkeep', c.expense.toFixed(1) + '/mo')}${stat('War tech', c.tech.mil)}</div>`;
+  let h = `<div class="band"></div><h2>Military</h2><div class="grid">${stat('Men under arms', fmt(mine.reduce((t, a) => t + Gm.armyMen(a), 0)))}${stat('Manpower', `${fmt(c.manpower)} / ${fmt(c.maxMP)}`)}${stat('Upkeep', c.expense.toFixed(1) + '/mo')}${stat('War tech', c.tech.mil)}</div>`;
   h += `<p class="muted">Tap an army (here or on the map) to select it, then tap a province to march. Raise troops from any province you hold. Winter (Samhain–Feabhra) slows marching and brings attrition; armies larger than the land can feed waste away.</p>`;
   if (UI.army && s.armies.includes(UI.army)) {
     const a = UI.army, here = s.armies.filter(b => b.loc === a.loc && b.owner === c.id && b !== a);
@@ -346,7 +347,7 @@ function ledger() {
   const rows = s.countries.filter(c => c.alive).map(c => ({ c, provs: c.provs.length, pop: c.pop, army: Gm.countryArmyMen(c.id), income: c.income, tech: c.tech.adm + c.tech.dip + c.tech.mil }));
   rows.sort((a, b) => b[key] - a[key]);
   const pop = s.provinces.reduce((t, P) => t + P.pop, 0);
-  let h = `<h2>Ledger</h2><div class="grid">${stat('Island population', fmt(pop))}${stat('Realms', rows.length)}${stat('Wars', s.wars.length)}${stat('High King', s.ardRi >= 0 ? cn(s.ardRi) : '—')}</div>`;
+  let h = `<div class="band"></div><h2>Ledger</h2><div class="grid">${stat('Island population', fmt(pop))}${stat('Realms', rows.length)}${stat('Wars', s.wars.length)}${stat('High King', s.ardRi >= 0 ? cn(s.ardRi) : '—')}</div>`;
   h += `<div class="tabs2">${[['provs', 'Land'], ['pop', 'People'], ['army', 'Army'], ['income', 'Income'], ['tech', 'Tech']].map(([k, n]) => `<button class="${key === k ? 'on' : ''}" data-act="ledgersort" data-k="${k}">${n}</button>`).join('')}</div>`;
   for (const r of rows) {
     const v = key === 'income' ? r.income.toFixed(1) : fmt(r[key]);
@@ -358,7 +359,7 @@ function ledger() {
 // ---------- Annals ----------
 function annals() {
   const s = S();
-  let h = `<h2>Annals</h2><div class="tabs2">${[['mine', 'Your realm'], ['all', 'All of Ireland']].map(([k, n]) => `<button class="${UI.logFilter === k ? 'on' : ''}" data-act="logfilter" data-k="${k}">${n}</button>`).join('')}</div>`;
+  let h = `<div class="band"></div><h2>Annals</h2><div class="tabs2">${[['mine', 'Your realm'], ['all', 'All of Ireland']].map(([k, n]) => `<button class="${UI.logFilter === k ? 'on' : ''}" data-act="logfilter" data-k="${k}">${n}</button>`).join('')}</div>`;
   const list = s.log.filter(e => UI.logFilter === 'all' || e.kind !== 'world').slice().reverse();
   for (const e of list) h += `<div class="log-entry ${e.kind}" ${e.prov !== undefined ? `data-act="goto" data-id="${e.prov}" style="cursor:pointer"` : ''}><span class="d">${e.d}</span>${esc(e.text)}</div>`;
   return h;
@@ -367,7 +368,7 @@ function annals() {
 // ---------- Menu ----------
 function menu() {
   const theme = document.documentElement.dataset.theme || 'auto';
-  return `<h2>Menu</h2><div class="btns" style="flex-direction:column">
+  return `<div class="band"></div><h2>Menu</h2><div class="btns" style="flex-direction:column">
     <button class="btn" data-act="save">Save game</button>
     <button class="btn" data-act="load" ${localStorage.getItem('eire.save') ? '' : 'disabled'}>Load saved game</button>
     <button class="btn" data-act="loadauto" ${localStorage.getItem('eire.auto') ? '' : 'disabled'}>Load autosave</button>
@@ -377,10 +378,10 @@ function menu() {
     <p class="muted">Autosaves every Eanáir. Saves stay in this browser.</p>`;
 }
 export function helpHTML() {
-  return `<h2>How to play</h2>
+  return `<div class="band"></div><h2>How to play</h2>
   <p>You rule one Iron Age kingdom of Ireland in 1 AD. Guide it to 1801 — or unite the island.</p>
   <p><b>Time.</b> One tick is one month. Use the speed buttons (space pauses).</p>
-  <p><b>Points.</b> Your ruler generates ⚖ Rule, ✉ Diplomacy and ⛨ War points each month. Spend them on Learning (technology), cores, stability, claims and envoys.</p>
+  <p><b>Points.</b> Your ruler generates Rule ${ic('adm')}, Diplomacy ${ic('dip')} and War ${ic('mil')} points each month. Spend them on Learning (technology), cores, stability, claims and envoys.</p>
   <p><b>Land & people.</b> Every territory has a real terrain. Population grows toward what the land can feed; forests can be cleared; famines and plagues strike. People bring taxes and levies; cattle are wealth.</p>
   <p><b>Kingship.</b> Gaelic kings follow tanistry — name a tanist or face a succession dispute. Large realms risk a rival branch of the royal kin breaking away. Take hostages to make client kingdoms. Hold Tara to claim the High Kingship.</p>
   <p><b>War.</b> Choose a casus belli. Cattle-raids take only cattle and treasure; conquest needs claims (or comes later, with the Normans). Armies fight better on their favoured ground: kern in bog, forest and mountain; horse on open plains. Rivers hurt attackers.</p>
@@ -401,6 +402,10 @@ export function showPending() {
       const e = ERAS.find(x => x.id === p.era);
       showModal(`<h2>${e.name}</h2><p>${e.desc}</p><div class="opts"><button class="btn gold" data-act="pendok">Onward</button></div>`); return true;
     }
+    if (p.kind === 'notice') {
+      const icon = ic({ war: 'swords', bad: 'skull', good: 'prestige', era: 'leaf', ruler: 'realm', warn: 'warn' }[p.tone] || 'annals');
+      showModal(`<h2>${icon}${esc(p.title)}</h2><p>${esc(p.text)}</p><div class="opts">${p.prov !== undefined && p.prov !== null ? `<button class="btn" data-act="pendok" data-goto="${p.prov}">${ic('pin')} Show me</button>` : ''}<button class="btn gold" data-act="pendok">Continue</button></div>`); return true;
+    }
     if (p.kind === 'wave') {
       showModal(`<h2>Ships on the horizon</h2><p>${esc(p.text)}</p><div class="opts"><button class="btn gold" data-act="pendok" data-goto="${p.prov}">Show me</button></div>`); return true;
     }
@@ -412,7 +417,7 @@ export function showPending() {
       const w = s.wars.find(x => x.id === p.war);
       if (!w) { s.pending.shift(); continue; }
       const enemy = s.countries[p.side === 'att' ? w.al : w.dl];
-      showModal(`<h2>Terms from ${esc(enemy.name)}</h2><p>${esc(enemy.name)} offers peace in <i>${esc(w.name)}</i> if you accept:</p><ul>${termsList(p.terms)}</ul><p class="muted">War score in their favour: ${War.winnerScore(w, p.side)}%</p>
+      showModal(`<h2>Terms from ${esc(enemy.name)}</h2><p>${esc(enemy.name)} offers peace in ${esc(w.name)} if you accept:</p><ul>${termsList(p.terms)}</ul><p class="muted">War score in their favour: ${War.winnerScore(w, p.side)}%</p>
         <div class="opts"><button class="btn gold" data-act="peaceaccept">Accept</button><button class="btn" data-act="pendok">Refuse and fight on</button></div>`); return true;
     }
     if (p.kind === 'hostages') {
@@ -497,7 +502,7 @@ const A = {
   annex: d => War.DIP.annex(me(), S().countries[d.id]),
   release: d => War.DIP.release(me(), S().countries[d.id]),
   declare: d => { const w = War.declareWar(me().id, +d.id, d.cb); if (w) { Gm.refreshCountry(me()); } },
-  peace: d => { peaceDraft = null; peaceModal(+d.w); UI.pause && UI.pause(); },
+  peace: d => { peaceDraft = null; peaceModal(+d.w); },
   leavewar: d => {
     const s = S(), w = s.wars.find(x => x.id === +d.w); if (!w) return;
     w.att = w.att.filter(x => x !== s.player); w.def = w.def.filter(x => x !== s.player);
@@ -537,7 +542,7 @@ const A = {
     try { localStorage.setItem('eire.theme', next); } catch {}
   },
 };
-function afterModal() { if (!showPending() && UI.resume) UI.resume(); }
+function afterModal() { showPending(); }
 export function selectArmy(a) {
   UI.army = a; if (UI.view) { UI.view.selArmy = a; UI.view.needs = true; }
   if (a) { openPanel('military'); }
@@ -552,6 +557,7 @@ export function bindUI() {
     e.preventDefault();
     f(el.dataset, el);
     refreshAll();
+    if (!modalOpen() && S() && S().pending.length) showPending();
   });
   document.addEventListener('change', e => {
     const el = e.target.closest('input[data-act]'); if (!el) return;

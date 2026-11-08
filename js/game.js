@@ -1,5 +1,5 @@
 // Core simulation: setup, population, economy, institutions, rulers, unrest, history.
-import { ctx, log, clamp, dateStr } from './ctx.js';
+import { ctx, log, notify, clamp, dateStr } from './ctx.js';
 import { PT, PT_NAMES } from './mapgen.js';
 import {
   TERRAIN, TECH_YEARS, MAX_TECH, TECH_GATES, TECH_MAX_AHEAD, techCost, INSTITUTIONS, INST_IDS, UNITS, UNIT_SIZE,
@@ -131,7 +131,7 @@ function succeed(c) {
     text = `${old.name} has died. The thing elects ${c.ruler.name}.`;
   }
   c.cands = null;
-  if (isPlayer) log(text, 'ruler');
+  if (isPlayer) notify('The king is dead', text, { kind: 'ruler', prov: c.capital });
   // Partible kingship: a rival branch of the derbfine may carve out its own lordship
   if (c.laws.succession === 'tanistry' && c.provs.length > 24 && R().chance(Math.min(0.8, (c.provs.length - 20) / 40))) splitRealm(c);
   else if (c.outsider || c.provs.length > 12) log(`${c.name}: ${text}`, 'world');
@@ -504,7 +504,7 @@ function countryTick(c) {
   // ruler aging
   const r = c.ruler; r.age += 1 / 12;
   if (c.heir) c.heir.age += 1 / 12;
-  if (c.tanist) { c.tanist.age += 1 / 12; if (R().chance(deathChance(c.tanist.age))) { c.tanist = null; if (c.id === S.player) log('Your tanist has died. Name another before the king dies.', 'warn'); } }
+  if (c.tanist) { c.tanist.age += 1 / 12; if (R().chance(deathChance(c.tanist.age))) { c.tanist = null; if (c.id === S.player) notify('The tanist is dead', 'Your tanist has died. Name another in the Realm panel before the king dies.', { kind: 'warn' }); } }
   if (R().chance(deathChance(r.age))) succeed(c);
 }
 function deathChance(age) { return age < 16 ? 0.0006 : age < 40 ? 0.0009 : age < 55 ? 0.0022 : age < 65 ? 0.005 : age < 75 ? 0.012 : 0.03; }
@@ -549,7 +549,8 @@ export function revolt(id) {
   old.rel[to.id] = -100; to.rel[old.id] = -100;
   declareWar(old.id, to.id, 'rebellion', null, true);
   const msg = `Revolt! ${M.provinces[id].name} rises against ${old.name} and joins ${to.name}.`;
-  log(msg, old.id === S.player || to.id === S.player ? 'bad' : 'world', { prov: id });
+  if (old.id === S.player || to.id === S.player) notify('Revolt!', msg, { kind: old.id === S.player ? 'bad' : 'good', prov: id });
+  else log(msg, 'world', { prov: id });
 }
 export function splitRealm(c) {
   const S = S_(), M = M_();
@@ -572,7 +573,8 @@ export function splitRealm(c) {
   n.gold = 30; refreshCountry(n); n.manpower = n.maxMP * 0.5;
   n.rel[c.id] = -60; c.rel[n.id] = -60;
   const pl = S_().player;
-  log(`A rival branch of the derbfine breaks away from ${c.name}: ${n.name} takes ${group.length} territories around ${M.provinces[seed].name}.`, c.id === pl ? 'bad' : 'world', { prov: seed });
+  const st = `A rival branch of the derbfine breaks away from ${c.name}: ${n.name} takes ${group.length} territories around ${M.provinces[seed].name}.`;
+  if (c.id === pl) notify('The royal kin divides', st, { kind: 'bad', prov: seed }); else log(st, 'world', { prov: seed });
 }
 function lordshipName(pn) { return 'Lordship of ' + pn.replace(/\s*\(.*\)/, '').split(' ').slice(0, 2).join(' '); }
 export function randomColor() {
@@ -591,6 +593,7 @@ export function killCountry(c) {
   cleanupCountry(c);
   if (c.id === S.player) {
     S.over = { kind: 'defeat', text: `${c.name} has been destroyed.` };
+    log(`${c.name} has been destroyed.`, 'bad');
   } else log(`${c.name} is no more.`, 'world');
 }
 
@@ -609,7 +612,9 @@ function yearly() {
     for (const p of M.provinces) {
       if (Math.hypot(p.x - cp.x, p.y - cp.y) < 120) { const P = S.provinces[p.id]; P.pop *= 0.93; n++; if (P.owner === S.player) P.boost += 2; }
     }
-    log(`Failed harvest and famine around ${cp.name}.`, S.provinces[center].owner === S.player ? 'bad' : 'world', { prov: center });
+    const hit = M.provinces.some(p => Math.hypot(p.x - cp.x, p.y - cp.y) < 120 && S.provinces[p.id].owner === S.player);
+    if (hit) notify('Famine', `Failed harvest and famine around ${cp.name}. Your people starve.`, { kind: 'bad', prov: center });
+    else log(`Failed harvest and famine around ${cp.name}.`, 'world', { prov: center });
   }
   // outsider support from overseas
   for (const c of S.countries) if (c.alive && c.outsider) {
@@ -652,8 +657,8 @@ function updateArdRi() {
     S.ardRi = cand;
     if (cand >= 0) {
       const c = S.countries[cand]; c.prestige = Math.min(100, c.prestige + 25);
-      log(`${c.ruler.name} of ${c.name} is proclaimed Ard Rí — High King of Ireland — at Tara.`, cand === S.player ? 'good' : 'era');
-    } else if (prev >= 0) log('There is no High King in Ireland.', 'world');
+      notify('A High King at Tara', `${c.ruler.name} of ${c.name} is proclaimed Ard Rí — High King of Ireland — at Tara.`, { kind: cand === S.player ? 'good' : 'era', prov: M.byKey.tara });
+    } else if (prev >= 0) notify('The High Kingship falls vacant', `${S.countries[prev].name} can no longer hold the High Kingship. There is no Ard Rí in Ireland.`, { kind: prev === S.player ? 'bad' : 'era' });
   }
 }
 
@@ -677,24 +682,24 @@ function history() {
     S.provinces[origin].inst[inst.id] = 100;
     if (inst.id === 'christianity') S.provinces[origin].religion = 'christian';
     for (const c of S.countries) if (c.alive && (c.culture === 'english' || (c.culture === 'norman' && inst.id !== 'printing'))) c.inst[inst.id] = true;
-    log(`${inst.name} has appeared in ${M.provinces[origin].name}. ${inst.desc}`, 'era', { prov: origin });
+    notify(`${inst.name} appears`, `${inst.name} has appeared in ${M.provinces[origin].name}. ${inst.desc} It will spread from province to province; embrace it in the Realm panel once it reaches your people.`, { kind: 'era', prov: origin });
   }
   // plagues
   if (y === 544 && S.month === 4) once('blefed', () => startPlague('Blefed (Plague of Justinian)', 'dublin'));
   if (y === 664 && S.month === 4) once('buide', () => startPlague('Buide Connaill (Yellow Plague)', 'wexford'));
   if (y === 1348 && S.month === 7) once('blackdeath', () => startPlague('The Black Death', 'drogheda'));
-  if (y === 1650) once('potato', () => { S.flags.potato = true; log('The potato spreads through Ireland. Land can feed far more people.', 'era'); });
+  if (y === 1650) once('potato', () => { S.flags.potato = true; notify('The potato', 'The potato spreads through Ireland. The land can feed far more people.', { kind: 'era' }); });
   if (y === 1740 && S.month === 0) once('aircold', () => {
     for (const P of S.provinces) P.pop *= 0.88;
-    log('Bliain an Áir — the Year of Slaughter. Frost and famine kill one in eight.', 'bad');
+    notify('Bliain an Áir', 'The Year of Slaughter. Frost and famine kill one person in eight across Ireland.', { kind: 'bad' });
   });
   if (y === 1536 && S.month === 0) once('reform', () => {
     const e = S.countries.find(c => c.tag === 'ENG');
-    if (e && e.alive) { e.religion = 'protestant'; log('The Crown breaks with Rome. The Lordship becomes Protestant.', 'era'); }
+    if (e && e.alive) { e.religion = 'protestant'; notify('The Reformation', 'The Crown breaks with Rome. The Lordship becomes Protestant, and Catholic lands under its rule grow restless.', { kind: 'era' }); }
   });
   if (y === 1541 && S.month === 5) once('kingdom', () => {
     const e = S.countries.find(c => c.tag === 'ENG');
-    if (e && e.alive) { e.name = 'Kingdom of Ireland (English Crown)'; log('Henry VIII is declared King of Ireland. "Surrender and Regrant" is offered to Gaelic lords.', 'era'); }
+    if (e && e.alive) { e.name = 'Kingdom of Ireland (English Crown)'; notify('Kingdom of Ireland', 'Henry VIII is declared King of Ireland. "Surrender and Regrant" is offered to Gaelic lords.', { kind: 'era' }); }
   });
   // Viking raids
   if (y >= 795 && y < 1050 && R().chance(y < 850 ? 0.04 : 0.02)) vikingRaid();
@@ -709,7 +714,7 @@ function startPlague(name, key) {
   const id = M.byKey[key];
   S.provinces[id].plague = 6;
   S.plagueName = name; S.plagueUntil = S.year + 4;
-  log(`${name} arrives at ${M.provinces[id].name}!`, 'bad', { prov: id });
+  notify('Plague!', `${name} arrives at ${M.provinces[id].name}! It will spread along the roads and through the ports.`, { kind: 'bad', prov: id });
 }
 export function plagueSpread() {
   const S = S_(), M = M_();
@@ -730,7 +735,8 @@ function vikingRaid() {
   const P = S.provinces[p.id], o = S.countries[P.owner];
   P.pop *= 0.95; P.cattle *= 0.7; P.devast = Math.min(100, P.devast + 25);
   const loot = Math.min(o.gold * 0.15, 40); o.gold -= loot;
-  log(`Viking raiders sack ${p.name}${loot > 1 ? `, carrying off ${Math.round(loot)} in treasure` : ''}.`, o.id === S.player ? 'bad' : 'world', { prov: p.id });
+  const rt = `Viking raiders sack ${p.name}${loot > 1 ? `, carrying off ${Math.round(loot)} in treasure` : ''}.`;
+  if (o.id === S.player) notify('Vikings!', rt, { kind: 'bad', prov: p.id }); else log(rt, 'world', { prov: p.id });
 }
 function spawnWave(w) {
   const S = S_(), M = M_();
