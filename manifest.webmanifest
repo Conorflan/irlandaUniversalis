@@ -1,0 +1,16 @@
+{
+  "name": "Éire Uile — Grand Strategy in Ireland",
+  "short_name": "Éire Uile",
+  "description": "Grand strategy on the island of Ireland, from 1 AD to the Act of Union.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#1a140d",
+  "theme_color": "#1a140d",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

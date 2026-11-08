@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#1a140d">
+  <meta name="description" content="Grand strategy on the island of Ireland, from 1 AD to the Act of Union.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Éire Uile</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="hud" class="hidden">
+      <button id="hud-realm" class="realm-chip" data-act="tab" data-tab="realm"><span class="swatch"></span><span class="nm"></span></button>
+      <div class="res" id="res"></div>
+      <div class="time">
+        <div class="date" id="date"></div>
+        <div class="speed" id="speed">
+          <button data-speed="0" title="Pause (space)">❚❚</button>
+          <button data-speed="1">1</button><button data-speed="2">2</button><button data-speed="3">3</button><button data-speed="4">4</button><button data-speed="5">5</button>
+        </div>
+      </div>
+    </header>
+    <canvas id="map"></canvas>
+    <div id="mapmodes" class="hidden"></div>
+    <aside id="panel" class="hidden"><button class="close" data-act="close" aria-label="Close">✕</button><div id="panel-body"></div></aside>
+    <nav id="tabs" class="hidden">
+      <button data-act="tab" data-tab="realm"><span>♛</span>Realm</button>
+      <button data-act="tab" data-tab="tech"><span>✦</span>Learning</button>
+      <button data-act="tab" data-tab="diplo"><span>⚭</span>Diplomacy</button>
+      <button data-act="tab" data-tab="military"><span>⚔</span>Military</button>
+      <button data-act="tab" data-tab="ledger"><span>☰</span>Ledger</button>
+      <button data-act="tab" data-tab="log"><span>✎</span>Annals</button>
+      <button data-act="tab" data-tab="menu"><span>⚙</span>Menu</button>
+    </nav>
+    <div id="toasts"></div>
+    <div id="modal" class="hidden"><div class="card" id="modal-card"></div></div>
+    <section id="start">
+      <div class="start-card">
+        <h1>Éire Uile</h1>
+        <p class="sub">Grand strategy on the island of Ireland, 1 AD – 1801</p>
+        <div id="start-body"><p class="loading">Surveying the land…</p></div>
+      </div>
+    </section>
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
